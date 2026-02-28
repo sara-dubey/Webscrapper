@@ -1,0 +1,34 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+
+**/__pycache__/
+**/*.pyc
+paper-ai/.venv
+**/.pytest_cache
+
+
+**/.env
+**/.env.local
+**/.env.*.local
+
+
+.DS_Store
+.vscode/
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Env files
+.env
+.env.*

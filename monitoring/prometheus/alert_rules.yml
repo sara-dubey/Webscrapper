@@ -1,0 +1,90 @@
+groups:
+  - name: scraper-platform-alerts
+    rules:
+      - alert: ScraperApiDown
+        expr: up{job="scraper-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "scraper-api is down"
+
+      - alert: High5xxRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx rate above 1 req/s over 5m"
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency above 1.5s"
+
+      - alert: QueueOldestJobTooHigh
+        expr: max(queue_oldest_job_seconds) > 600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oldest queue job waiting over 10 minutes"
+
+      - alert: QueueWorkerHeartbeatMissing
+        expr: max_over_time(queue_worker_heartbeats[5m]) < 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No active queue workers for 5 minutes"
+
+      - alert: QueueWaitingGrowing
+        expr: delta(queue_waiting_jobs[10m]) > 25
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue waiting jobs growing continuously"
+
+      - alert: QueueFailureRateHigh
+        expr: sum(rate(queue_jobs_failed_total[5m])) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue failures above 0.25 jobs/s"
+
+      - alert: OllamaTimeoutSpike
+        expr: sum(rate(ollama_timeouts_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ollama timeout spike"
+
+      - alert: PaperAiLatencyHighP95
+        expr: histogram_quantile(0.95, sum by (le) (rate(request_duration_seconds_bucket[5m]))) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "paper-ai p95 latency above 20s"
+
+      - alert: SummaryCacheHitRateDrop
+        expr: sum(rate(cache_hits_total{cache="summary"}[10m])) / (sum(rate(cache_hits_total{cache="summary"}[10m])) + sum(rate(cache_misses_total{cache="summary"}[10m]))) < 0.45
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Summary cache hit rate dropped below 45%"
+
+      - alert: DiskUsageHigh
+        expr: max(100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint="/"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint="/"}))) > 85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage above 85%"

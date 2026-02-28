@@ -1,0 +1,5 @@
+ALTER TABLE "Paper"
+  ADD COLUMN IF NOT EXISTS "originText" TEXT;
+
+ALTER TABLE "Paper"
+  ADD COLUMN IF NOT EXISTS "originSource" JSONB;

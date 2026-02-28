@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserAccount {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String?
+  createdAt DateTime @default(now())
+  name      String? // ✅ optional
+  role      String   @default("user")
+  disabled  Boolean  @default(false)
+
+  searches UserSearch[]
+  notes    UserPaperNote[] // ✅ required opposite relation
+  passwordResets UserPasswordResetToken[]
+  ragChunks      RagChunk[]
+  highlights     UserPaperHighlight[]
+
+  @@map("user_account")
+}
+
+model UserPasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user UserAccount @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("user_password_reset_token")
+}
+
+model UserEmailVerificationCode {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("user_email_verification_code")
+}
+
+model PaperRecord {
+  id         String   @id @default(uuid())
+  source     String
+  searchKind String   @default("main_search")
+  externalId String
+  arxivId    String?
+  semanticScholarPaperId String?
+  openreviewForumId String?
+  title      String
+  url        String
+  repoUrl    String?
+  repoResolution Json?
+  abstract   String?
+  venue      String?
+  citationCount Int?
+  referenceCount Int?
+  huggingfaceComments Json?
+  originText String?
+  originSource Json?
+  year       Int?
+  authors    String[]
+  summaryModel         String?
+  summaryPromptVersion String?
+  summaryPromptText    String?
+  summarySource        Json?
+  summaryMd            String?
+  keyPoints            Json?
+  createdAt  DateTime @default(now())
+
+  notes       UserPaperNote[]
+  results     UserSearchResult[]
+  redditLinks PaperRedditLink[]
+  openReviewNotes PaperOpenReviewNote[]
+  semanticScholarCitations PaperSemanticScholarCitation[]
+  ragChunks   RagChunk[]
+  highlights  UserPaperHighlight[]
+
+  @@unique([source, externalId])
+  @@index([externalId])
+  @@index([searchKind])
+  @@index([arxivId])
+  @@index([semanticScholarPaperId])
+  @@index([openreviewForumId])
+  @@map("paper_paper")
+}
+
+model PaperOpenReviewNote {
+  id               String   @id @default(uuid())
+  paperId          String
+  forumId          String
+  noteId           String
+  parentNoteId     String?
+  noteType         String
+  invitation       String?
+  title            String?
+  summary          String?
+  strengths        String?
+  weaknesses       String?
+  questions        String?
+  comment          String?
+  details          String?
+  decision         String?
+  soundness        String?
+  presentation     String?
+  contribution     String?
+  ratingText       String?
+  confidenceText   String?
+  ratingScore      Float?
+  confidenceScore  Float?
+  url              String?
+  readers          Json?
+  signatures       Json?
+  rawContent       Json?
+  createdAtRemote  DateTime?
+  updatedAtRemote  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  paper PaperRecord @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@unique([paperId, noteId])
+  @@index([paperId])
+  @@index([forumId])
+  @@index([noteType])
+  @@index([createdAtRemote])
+  @@map("paper_openreview_note")
+}
+
+model PaperSemanticScholarCitation {
+  id                       String   @id @default(uuid())
+  paperId                  String
+  citationKey              String
+  sourcePaperId            String?
+  direction                String
+  citedPaperId             String?
+  title                    String
+  url                      String?
+  influentialCitationCount Int?
+  rawPayload               Json?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  paper PaperRecord @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@unique([paperId, citationKey])
+  @@index([paperId])
+  @@index([direction])
+  @@map("paper_semantic_scholar_citation")
+}
+
+model UserPaperNote {
+  id        String   @id @default(uuid())
+  paperId   String
+  userId    String
+  note      String
+  createdAt DateTime @default(now())
+
+  paper PaperRecord @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user  UserAccount  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([paperId])
+  @@index([userId])
+  @@map("user_paper_note")
+}
+
+model UserSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  query     String
+  note      String?
+  filters   Json?
+  createdAt DateTime @default(now())
+
+  user        UserAccount              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results     UserSearchResult[]
+  redditLinks PaperRedditLink[]
+  ragChunks   RagChunk[]
+
+  @@index([userId])
+  @@index([query])
+  @@map("user_search")
+}
+
+model UserSearchResult {
+  id        String   @id @default(uuid())
+  searchId  String
+  paperId   String
+  rank      Int?
+  createdAt DateTime @default(now())
+
+  search UserSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  paper  PaperRecord  @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@unique([searchId, paperId])
+  @@index([searchId])
+  @@index([paperId])
+  @@map("user_search_result")
+}
+
+model PaperRedditPost {
+  id          String   @id @default(uuid())
+  platformId  String   @unique
+  subreddit   String
+  title       String
+  url         String
+  score       Int?
+  numComments Int?
+  createdUtc  Int?
+  snippet     String?
+  createdAt   DateTime @default(now())
+
+  paperLinks PaperRedditLink[]
+  ragChunks RagChunk[]
+
+  @@map("paper_reddit_post")
+}
+
+model PaperRedditLink {
+  id String @id @default(uuid())
+
+  searchId String // ✅ the key fix
+
+  paperId      String
+  redditPostId String
+  matchedBy    String?
+  createdAt    DateTime @default(now())
+
+  search     UserSearch     @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  paper      PaperRecord      @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  redditPost PaperRedditPost @relation(fields: [redditPostId], references: [id], onDelete: Cascade)
+
+  @@unique([searchId, redditPostId])
+  @@index([searchId])
+  @@index([paperId])
+  @@index([redditPostId])
+  @@map("paper_reddit_link")
+}
+
+model RagChunk {
+  id           String                  @id @default(uuid())
+  userId       String
+  searchId     String?
+  paperId      String?
+  redditPostId String?
+  sourceType   String
+  credibilityScore Float?
+  sourceId     String
+  chunkIndex   Int
+  content      String
+  metadata     Json?
+  embeddingModel String?
+  embedding    Unsupported("vector")?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  user       UserAccount       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  search     UserSearch?    @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  paper      PaperRecord?     @relation(fields: [paperId], references: [id], onDelete: SetNull)
+  redditPost PaperRedditPost? @relation(fields: [redditPostId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, sourceType, sourceId, chunkIndex])
+  @@index([userId])
+  @@index([searchId])
+  @@index([paperId])
+  @@index([redditPostId])
+  @@map("rag_chunk")
+}
+
+model UserPaperHighlight {
+  id         String   @id @default(uuid())
+  userId     String
+  paperId    String?
+  source     String?
+  externalId String?
+  pdfUrl     String?
+  quote      String
+  note       String?
+  color      String?  @default("#ffe066")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  UserAccount  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paper PaperRecord? @relation(fields: [paperId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([paperId])
+  @@index([userId, source, externalId])
+  @@map("user_paper_highlight")
+}
+
+model AdminConfig {
+  key       String   @id
+  valueJson Json     @map("value_json")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@index([updatedAt])
+  @@map("admin_config")
+}

@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS "PaperCollection";
+DROP TABLE IF EXISTS "Collection";
+
+ALTER TABLE "Paper"
+DROP COLUMN IF EXISTS "topic";

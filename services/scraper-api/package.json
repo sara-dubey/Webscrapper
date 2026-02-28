@@ -1,0 +1,35 @@
+{
+  "name": "scraper-api",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
+    "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
+    "test:runtime": "bash ./scripts/test_runtime_resilience.sh",
+    "import:icml": "node scripts/import_icml_titles_with_curl.mjs",
+    "rag:clear": "node scripts/clear_rag_chunks.mjs",
+    "rag:reindex": "node scripts/reindex_rag_from_db_only.mjs",
+    "rag:rebuild": "node scripts/clear_rag_chunks.mjs && node scripts/reindex_rag_from_db_only.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.3",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.19.2",
+    "fast-xml-parser": "^4.4.1",
+    "google-auth-library": "^10.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^11.2.5",
+    "nodemailer": "^6.10.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "prisma": "^6.16.3",
+    "supertest": "^7.1.1"
+  }
+}

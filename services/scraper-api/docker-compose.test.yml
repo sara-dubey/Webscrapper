@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: scraper_test_redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: scraper_test_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: paperuser
+      POSTGRES_PASSWORD: paperpass
+      POSTGRES_DB: paperdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperuser -d paperdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 15

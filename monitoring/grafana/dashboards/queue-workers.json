@@ -1,0 +1,119 @@
+{
+  "id": null,
+  "uid": "queue-workers",
+  "title": "Queue + Workers",
+  "tags": ["scraper", "queue"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Queue Depth (waiting/active/delayed/failed/completed)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "max(queue_waiting_jobs)", "legendFormat": "waiting", "refId": "A" },
+        { "expr": "max(queue_active_jobs)", "legendFormat": "active", "refId": "B" },
+        { "expr": "max(queue_delayed_jobs)", "legendFormat": "delayed", "refId": "C" },
+        { "expr": "max(queue_failed_jobs)", "legendFormat": "failed", "refId": "D" },
+        { "expr": "max(queue_completed_jobs)", "legendFormat": "completed", "refId": "E" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Oldest Waiting Job Age (s)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "max(queue_oldest_job_seconds)", "legendFormat": "oldest", "refId": "A" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Throughput (jobs/sec completed)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(queue_jobs_completed_total[1m]))", "legendFormat": "completed_per_sec", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Failure Rate (jobs/sec)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(queue_jobs_failed_total[5m]))", "legendFormat": "failed_per_sec", "refId": "A" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Retries (retries/sec)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(queue_retries_total[5m]))", "legendFormat": "retries_per_sec", "refId": "A" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Worker Heartbeats (fresh)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "max(queue_worker_heartbeats)", "refId": "A" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Queue Paused Flag",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "targets": [
+        { "expr": "max(queue_paused)", "refId": "A" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Job Runtime p95/p99",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(queue_job_runtime_seconds_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(queue_job_runtime_seconds_bucket[5m])))",
+          "legendFormat": "p99",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Failed Jobs by Type",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum by (job_type, error_type) (rate(queue_jobs_failed_total[5m]))",
+          "legendFormat": "{{job_type}}/{{error_type}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

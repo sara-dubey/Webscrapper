@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS "PaperCollection";
+DROP TABLE IF EXISTS "Collection";
+DROP TABLE IF EXISTS "Session";
+DROP TABLE IF EXISTS "audit_log";

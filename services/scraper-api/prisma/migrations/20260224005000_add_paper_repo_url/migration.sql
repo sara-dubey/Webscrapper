@@ -1,0 +1,2 @@
+ALTER TABLE "Paper"
+ADD COLUMN "repoUrl" TEXT;

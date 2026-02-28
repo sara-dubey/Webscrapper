@@ -1,0 +1,205 @@
+{
+  "id": null,
+  "uid": "llm-pipeline",
+  "title": "LLM + Pipeline (paper-ai + Ollama)",
+  "tags": ["scraper", "llm", "paper-ai"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "paper-ai Request Latency p50/p95/p99",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "paper-ai Errors by Class",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (class) (rate(errors_total[5m]))",
+          "legendFormat": "{{class}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Ollama Call Latency p50/p95/p99",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(ollama_call_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(ollama_call_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(ollama_call_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Ollama Timeouts / Model Errors",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(ollama_timeouts_total[5m]))",
+          "legendFormat": "timeout {{model}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(errors_total{class=~\".*ollama.*\"}[5m]))",
+          "legendFormat": "ollama errors",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Stage Timing p95 (fetch/chunk/summarize/store)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (stage, le) (rate(stage_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Summary Cache Hit Rate",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(cache_hits_total{cache=\"summary\"}[5m])) / (sum(rate(cache_hits_total{cache=\"summary\"}[5m])) + sum(rate(cache_misses_total{cache=\"summary\"}[5m])))",
+          "legendFormat": "summary_hit_rate",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Output Size / Tokens (p95)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (kind, le) (rate(summary_output_tokens_bucket[10m])))",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Active LLM Route (mode/provider/capability)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum by (capability, mode, provider) (llm_active_provider)",
+          "legendFormat": "{{capability}} {{mode}}/{{provider}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "LLM Configured Mode",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "max by (mode) (llm_mode_configured)",
+          "legendFormat": "{{mode}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "LLM Requests Rate (capability/mode/provider/outcome)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "targets": [
+        {
+          "expr": "sum by (capability, mode, provider, outcome) (rate(llm_requests_total[5m]))",
+          "legendFormat": "{{capability}} {{mode}}/{{provider}} {{outcome}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "LLM Request Duration p95 (capability/mode/provider)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (capability, mode, provider, le) (rate(llm_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{capability}} {{mode}}/{{provider}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "LLM Last Call Timestamp Seconds",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "targets": [
+        {
+          "expr": "max by (capability, mode, provider) (llm_last_call_timestamp_seconds)",
+          "legendFormat": "{{capability}} {{mode}}/{{provider}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
