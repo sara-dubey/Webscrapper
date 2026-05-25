@@ -1403,7 +1403,7 @@ async def _chat_with_openai(question: str, chunks: List[Dict[str, Any]]) -> Dict
                     "role": "system",
                     "content": (
                         "You are a retrieval QA assistant. Answer only from provided context. "
-                        "If uncertain, explicitly say you do not have enough context."
+                        "If uncertain, provide the best grounded answer and explicitly list missing details."
                     ),
                 },
                 {"role": "user", "content": _build_rag_prompt(question, chunks)},
@@ -1439,7 +1439,7 @@ async def _chat_with_api(question: str, chunks: List[Dict[str, Any]]) -> Dict[st
             "max_tokens": _to_positive_int(os.getenv("API_LLM_MAX_TOKENS"), 700),
             "system": (
                 "You are a retrieval QA assistant. Answer only from provided context. "
-                "If uncertain, explicitly say you do not have enough context."
+                "If uncertain, provide the best grounded answer and explicitly list missing details."
             ),
             "messages": [{"role": "user", "content": prompt}],
         }
@@ -1450,7 +1450,7 @@ async def _chat_with_api(question: str, chunks: List[Dict[str, Any]]) -> Dict[st
                     {
                         "text": (
                             "You are a retrieval QA assistant. Answer only from provided context. "
-                            "If uncertain, explicitly say you do not have enough context."
+                            "If uncertain, provide the best grounded answer and explicitly list missing details."
                         )
                     }
                 ]
@@ -1471,7 +1471,7 @@ async def _chat_with_api(question: str, chunks: List[Dict[str, Any]]) -> Dict[st
                     "role": "system",
                     "content": (
                         "You are a retrieval QA assistant. Answer only from provided context. "
-                        "If uncertain, explicitly say you do not have enough context."
+                        "If uncertain, provide the best grounded answer and explicitly list missing details."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -1510,7 +1510,7 @@ async def _chat_with_ollama(question: str, chunks: List[Dict[str, Any]]) -> Dict
                     "role": "system",
                     "content": (
                         "You are a retrieval QA assistant. Answer only from provided context. "
-                        "If uncertain, say context is insufficient."
+                        "If uncertain, provide the best grounded answer and explicitly list missing details."
                     ),
                 },
                 {"role": "user", "content": _build_rag_prompt(question, chunks)},
@@ -1620,6 +1620,109 @@ def _parse_quote_lines(raw_text: Any) -> List[str]:
         if len(out) >= 8:
             break
     return out
+
+
+def _looks_like_insufficient_text(value: Any) -> bool:
+    s = _lower(value)
+    if not s:
+        return True
+    markers = (
+        "context is insufficient",
+        "insufficient context",
+        "not enough context",
+        "do not have enough context",
+        "don't have enough context",
+        "none provided",
+        "no context provided",
+        "cannot determine from the provided context",
+    )
+    return any(m in s for m in markers)
+
+
+def _fallback_conceptual_answer_from_quotes(quote_chunks: List[Dict[str, Any]]) -> str:
+    snippets: List[str] = []
+    seen = set()
+    for row in quote_chunks or []:
+        content = str((row or {}).get("content") or "")
+        if not content:
+            continue
+        m_abs = re.search(r"\bAbstract:\s*(.+)", content, re.IGNORECASE | re.DOTALL)
+        if m_abs:
+            abstract_text = _clean_inline_text(m_abs.group(1), 320)
+            if abstract_text and not _looks_like_insufficient_text(abstract_text):
+                k_abs = abstract_text.lower()
+                if k_abs not in seen:
+                    seen.add(k_abs)
+                    snippets.append(abstract_text)
+                    if len(snippets) >= 10:
+                        break
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if re.match(r"^(query|title|url|year|repo|type|arxiv|doi)\s*:", line, re.IGNORECASE):
+                continue
+            if len(line) < 36:
+                continue
+            line = _clean_inline_text(line, 260)
+            if _looks_like_insufficient_text(line):
+                continue
+            key = line.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            snippets.append(line)
+            if len(snippets) >= 10:
+                break
+        if len(snippets) >= 10:
+            break
+
+    if not snippets:
+        return (
+            "## Method Summary\n"
+            "- Retrieved context is available, but it does not contain enough method detail in the selected chunks.\n\n"
+            "## Evidence\n"
+            "- No directly extractable evidence lines were found in the selected chunks.\n\n"
+            "## Caveats\n"
+            "- Ask a more specific question (e.g., training setup, architecture, or benchmark result)."
+        )
+
+    problem_candidates = [
+        x
+        for x in snippets
+        if re.search(r"(problem|challenge|vulnerab|difficulty|fails?|non-robust|costly|expensive|need|calls? for)", x, re.IGNORECASE)
+    ]
+    method_candidates = [
+        x
+        for x in snippets
+        if re.search(r"(propose|introduce|present|framework|method|approach|architecture|model|algorithm|train|learn|certif)", x, re.IGNORECASE)
+    ]
+    evidence_candidates = [x for x in snippets if re.search(r"(result|improv|reduce|increase|outperform|benchmark|accuracy|error|show|demonstrat)", x, re.IGNORECASE)]
+    caveat_candidates = [x for x in snippets if re.search(r"(however|but|limit|limitation|assumption|trade[- ]?off|risk|challenge)", x, re.IGNORECASE)]
+
+    method_points: List[str] = []
+    if problem_candidates:
+        method_points.append(f"Problem: {problem_candidates[0]}")
+    if method_candidates:
+        method_points.append(f"Approach: {method_candidates[0]}")
+    if not method_points:
+        method_points = snippets[:2]
+
+    evidence_points = (evidence_candidates[:2] if evidence_candidates else snippets[2:4]) or [snippets[0]]
+    caveat_points = caveat_candidates[:2] if caveat_candidates else ["Explicit caveats are not clearly stated in the retrieved snippets."]
+
+    lines: List[str] = ["## Method Summary"]
+    for pt in method_points:
+        lines.append(f"- {pt}")
+    lines.append("")
+    lines.append("## Evidence")
+    for pt in evidence_points:
+        lines.append(f"- {pt}")
+    lines.append("")
+    lines.append("## Caveats")
+    for pt in caveat_points:
+        lines.append(f"- {pt}")
+    return "\n".join(lines).strip()
 
 
 def _clean_inline_text(value: Any, max_len: int = 220) -> str:
@@ -1849,7 +1952,7 @@ async def _extract_quote_chunks(
     )
     out = await answer_from_context(prompt, chunks)
     raw = str(out.get("answer") or "")
-    quotes = _parse_quote_lines(raw)
+    quotes = [q for q in _parse_quote_lines(raw) if not _looks_like_insufficient_text(q)]
     quote_chunks: List[Dict[str, Any]] = []
     if quotes:
         for idx, quote in enumerate(quotes):
@@ -1895,11 +1998,15 @@ async def _synthesize_from_quotes(
         return {"answer": "", "model": None}
     prompt = (
         "Answer using only the provided quote evidence.\n"
-        "If evidence is insufficient, state what is missing.\n"
+        "If evidence is insufficient, provide best-grounded answer and clearly list what is missing.\n"
         f"{_intent_synthesis_template(intent, question)}\n"
         f"Question: {question}"
     )
-    return await answer_from_context(prompt, quote_chunks)
+    out = await answer_from_context(prompt, quote_chunks)
+    answer = str(out.get("answer") or "").strip()
+    if _normalize_intent(intent) == "CONCEPTUAL" and _looks_like_insufficient_text(answer):
+        return {"answer": _fallback_conceptual_answer_from_quotes(quote_chunks), "model": "rule_conceptual_fallback_v1"}
+    return out
 
 
 # Compute confidence score from chunk signals.
